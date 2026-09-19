@@ -6,7 +6,7 @@ ReleasePilot is a local feature flag control plane built with Next.js and TypeSc
 
 ## Why this project
 
-A Boolean flag is easy to implement. A useful release control plane also needs stable cohort assignment, an emergency off switch, protection against conflicting edits, and a record of who changed exposure. This project implements the underlying behavior without adding a message broker or microservices that the local use case does not need.
+A Boolean flag is easy to implement. A useful release control plane also needs stable cohort assignment, an emergency off switch, protection against conflicting edits, and a record of what changed and when. This project implements the underlying behavior without adding a message broker or microservices that the local use case does not need.
 
 ```mermaid
 flowchart LR
