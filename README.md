@@ -1,60 +1,52 @@
 # ReleasePilot
 
-ReleasePilot is a local feature flag control plane built with Next.js and TypeScript. It lets a team create flags, change rollout percentages, preview decisions for a subject, and inspect a versioned audit trail through the API.
+A local feature-flag control plane. I create flags, assign a stable cohort, refuse a stale write, and store the change in an audit row.
 
-**Status:** portfolio project. It is a functioning local application and has no production users. It is not a hosted feature flag service.
+**Status:** I built this as a portfolio system. One SQLite file and one admin key. It is not a hosted flag service.
 
-## Why this project
+## Problem
 
-A Boolean flag is easy to implement. A useful release control plane also needs stable cohort assignment, an emergency off switch, protection against conflicting edits, and a record of what changed and when. This project implements the underlying behavior without adding a message broker or microservices that the local use case does not need.
+A boolean flag does not answer three questions a rollout actually has: will this subject stay in the cohort if the percentage goes up, does an emergency off switch beat the percentage, and what happens when two people save at once.
+
+## Design
 
 ```mermaid
 flowchart LR
-  Operator[Operator browser] --> UI[Next.js UI]
-  UI --> API[Next.js route handlers]
-  API --> DB[(SQLite flags and audit)]
-  API --> Engine[Deterministic evaluator]
+  Operator[Operator] --> UI[Next.js UI]
+  UI --> API[Route handlers]
+  API --> DB[(SQLite)]
+  API --> Engine[Evaluator]
 ```
 
-## Requirements and run
+- **Cohort.** SHA-256 of salt, flag key, and subject maps into 10,000 buckets. A subject included at 25% stays included at 40%. The evaluator does not write a row per subject.
+- **Kill switch.** `enabled=false` returns false even when the rollout is 100%.
+- **Conflicts.** `PATCH` requires the current `version`. The update and the audit insert commit together. A stale version returns 409.
+- **Secret.** `ADMIN_KEY` stays in the environment and is compared in constant time. The browser keeps the typed key in memory for the tab and sends it as `x-admin-key`.
 
-- Node.js 26 or newer (uses the built-in `node:sqlite` module)
-- npm
+## Run
+
+Node.js 22 or newer (`node:sqlite`). The CI image uses Node 26.
 
 ```bash
 cp .env.example .env.local
-# Set ADMIN_KEY to a random secret of at least 24 characters
+# ADMIN_KEY must be at least 24 characters
 npm install
 npm run dev
 ```
 
-Open `http://localhost:3000`, enter the same admin key in the access field and load flags. The key stays in tab memory, not local storage. It is transmitted to the local API in `x-admin-key`. Use `npm test` and `npm run build` to verify the project. Data is stored in `data/releasepilot.db`, ignored by Git.
+Open `http://localhost:3000`. `npm test` and `npm run build` verify the project. The database file is `data/releasepilot.db` and is gitignored.
 
-## API
+`POST /api/flags` creates a disabled flag. `PATCH /api/flags/{key}` with `{"version":1,"enabled":true,"rollout":25}` changes it. `GET /api/flags/{key}` returns the flag and the last 50 audit entries. The flag panel can show those entries. `POST /api/evaluate` with `{"key":"...","subject":"account-42"}` returns the decision, bucket, and version.
 
-All endpoints require `x-admin-key`. `GET /api/flags` lists flags. `POST /api/flags` creates a disabled flag with `{"key":"new_checkout","description":"Gradual rollout"}`. `PATCH /api/flags/new_checkout` changes state with `{"version":1,"enabled":true,"rollout":25}`. A stale version returns 409. `GET /api/flags/new_checkout` returns the flag plus its last 50 audit entries. `POST /api/evaluate` with `{"key":"new_checkout","subject":"account-42"}` returns the decision, bucket and flag version.
+## Tests
 
-## Design decisions
+`npm test` covers stable decisions, rollout bounds, validation, the version conflict, route create/update/evaluate, the kill switch, and cohort monotonicity when the percentage increases. CI runs the tests and the production build.
 
-- **Stable rollout:** SHA-256 of flag salt, key and subject maps a subject to one of 10,000 buckets. Increasing rollout generally preserves previously enabled subjects, while different flags have independent cohorts.
-- **Emergency stop:** `enabled=false` always returns false regardless of percentage.
-- **Optimistic concurrency:** updates require the current `version`. The update and audit entry are in one database transaction.
-- **Server-owned secrets:** the admin key is kept in an environment variable and compared in constant time. The browser holds only the value typed for the current tab. Do not use the example key in a deployment.
-- **SQLite:** local operation needs no external infrastructure. A multi-instance deployment would replace SQLite with PostgreSQL and add organization identity, per-environment flags, fine-grained roles, and a dedicated evaluation token.
+## Limits
 
-The evaluator never records subject IDs. There is no tracking or analytics pipeline. The current UI is intended for local review; deployment behind the public internet would require TLS, managed authentication, rate limiting, backups, and an evaluation endpoint with separate credentials.
+One shared admin key. The evaluate route uses that same key. No organizations, environments, or SDK tokens. SQLite is local to one process. A public deployment would need TLS, a real identity provider, rate limiting, backups, and a separate low-privilege evaluation credential. Subject ids are not stored.
 
-## Interview questions this project can support
+## Decisions
 
-- How does deterministic bucketing avoid a database lookup for every subject?
-- What happens when the rollout goes from 25% to 40% or the salt changes?
-- Why does a stale version return 409? What if two operators update simultaneously?
-- How would you serve evaluations at high volume while keeping emergency disable responsive?
-- What would change for multiple tenants, environments, and SDK clients?
-
-## Roadmap
-
-1. Add named environments and organization roles.
-2. Add a cache or published snapshot for high-volume evaluations.
-3. Add a signed, low-privilege evaluation token and rate limiting.
-4. Add integration tests for route handlers and audit behavior.
+- [ADR 001 Deterministic cohorts](docs/adr-001-deterministic-cohorts.md)
+- [ADR 002 Optimistic audit](docs/adr-002-optimistic-audit.md)

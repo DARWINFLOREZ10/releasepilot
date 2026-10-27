@@ -8,6 +8,11 @@ export type FlagRow = Flag & { description: string; updated_at: string };
 
 let instance: DatabaseSync | undefined;
 
+export function closeDatabase(): void {
+  instance?.close();
+  instance = undefined;
+}
+
 export function database(): DatabaseSync {
   if (instance) return instance;
   const path = process.env.RELEASEPILOT_DB || 'data/releasepilot.db';

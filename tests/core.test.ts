@@ -14,6 +14,17 @@ test('zero and full rollout boundaries', () => {
   assert.equal(evaluate({ ...flag, enabled: false, rollout: 100 }, 'a').enabled, false);
 });
 
+test('raising the rollout keeps subjects already included', () => {
+  const subjects = Array.from({ length: 400 }, (_, index) => `subject-${index}`);
+  const included = subjects.filter((subject) => evaluate({ ...flag, rollout: 25 }, subject).enabled);
+  assert.ok(included.length > 0);
+  for (const subject of included) {
+    const again = evaluate({ ...flag, rollout: 40 }, subject);
+    assert.equal(again.enabled, true);
+    assert.equal(again.bucket, evaluate({ ...flag, rollout: 25 }, subject).bucket);
+  }
+});
+
 test('validation rejects unsafe identifiers and percentages', () => {
   assert.equal(validateKey('new_checkout'), true);
   assert.equal(validateKey('../admin'), false);
