@@ -7,7 +7,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "test": "node --experimental-strip-types --test tests/*.test.ts"
+    "test": "node --experimental-strip-types --import ./tests/hooks.mjs --test tests/*.test.ts"
   },
   "dependencies": {
     "next": "16.3.5",

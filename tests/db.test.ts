@@ -3,8 +3,9 @@ import { mkdtempSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import test from 'node:test';
-import { createFlag, getFlag, updateFlag, auditLog } from '../lib/db.ts';
+import { closeDatabase, createFlag, getFlag, updateFlag, auditLog } from '../lib/db.ts';
 
+closeDatabase();
 const dir = mkdtempSync(join(tmpdir(), 'releasepilot-'));
 process.env.RELEASEPILOT_DB = join(dir, 'test.db');
 
