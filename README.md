@@ -1,8 +1,8 @@
 # ReleasePilot
 
-A local feature-flag control plane. It creates flags, assigns a stable cohort, refuses a stale write, and stores the change in an audit row.
+A local feature-flag control plane. I create flags, assign a stable cohort, refuse a stale write, and store the change in an audit row.
 
-**Status:** portfolio project. One SQLite file and one admin key. Not a hosted flag service.
+**Status:** I built this as a portfolio system. One SQLite file and one admin key. It is not a hosted flag service.
 
 ## Problem
 
